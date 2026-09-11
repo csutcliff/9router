@@ -1,11 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import PropTypes from "prop-types";
 import { Button, Modal, Toggle } from "@/shared/components";
 import { CAPACITY_META } from "@/shared/constants/models";
 
 const defaultCaps = () => Object.fromEntries(Object.keys(CAPACITY_META).map((key) => [key, false]));
+
+// How many matches to render in the dropdown at once. modelOptions can run to
+// several hundred entries (e.g. openrouter's full catalog) — the list is
+// already filtered by the query, but capping the render count keeps a blank
+// query from mounting hundreds of rows.
+const MAX_VISIBLE_OPTIONS = 50;
 
 export default function AddCustomModelModal({ isOpen, providerAlias, providerDisplayAlias, modelOptions, onSave, onClose }) {
   const [modelId, setModelId] = useState("");
@@ -13,16 +19,51 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
   const [testStatus, setTestStatus] = useState(null); // null | "testing" | "ok" | "error"
   const [testError, setTestError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const containerRef = useRef(null);
 
   // Reset state when modal opens
   useEffect(() => {
-    if (isOpen) { setModelId(""); setCaps(defaultCaps()); setTestStatus(null); setTestError(""); }
+    if (isOpen) {
+      setModelId(""); setCaps(defaultCaps()); setTestStatus(null); setTestError("");
+      setShowOptions(false); setHighlightedIndex(-1);
+    }
   }, [isOpen]);
+
+  // Close the options popup on an outside click
+  useEffect(() => {
+    if (!showOptions) return undefined;
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setShowOptions(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showOptions]);
+
+  const hasOptions = modelOptions && modelOptions.length > 0;
+
+  const filteredOptions = useMemo(() => {
+    if (!hasOptions) return [];
+    const query = modelId.trim().toLowerCase();
+    const matches = query
+      ? modelOptions.filter((m) => m.id.toLowerCase().includes(query) || m.name?.toLowerCase().includes(query))
+      : modelOptions;
+    return matches.slice(0, MAX_VISIBLE_OPTIONS);
+  }, [hasOptions, modelOptions, modelId]);
 
   // Strip provider's own alias prefix (e.g. "cc/model" -> "model" for cc provider)
   const stripAlias = (id) => {
     const prefix = `${providerAlias}/`;
     return id.startsWith(prefix) ? id.slice(prefix.length) : id;
+  };
+
+  const selectOption = (id) => {
+    setModelId(id);
+    setTestStatus(null);
+    setTestError("");
+    setShowOptions(false);
+    setHighlightedIndex(-1);
   };
 
   const handleTest = async () => {
@@ -57,16 +98,27 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") handleTest();
+    if (!showOptions || filteredOptions.length === 0) {
+      if (e.key === "Enter") handleTest();
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i + 1) % filteredOptions.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i <= 0 ? filteredOptions.length - 1 : i - 1));
+    } else if (e.key === "Enter") {
+      if (highlightedIndex >= 0) {
+        e.preventDefault();
+        selectOption(filteredOptions[highlightedIndex].id);
+      } else {
+        handleTest();
+      }
+    } else if (e.key === "Escape") {
+      setShowOptions(false);
+    }
   };
-
-  // Optional autocomplete over a provider's full model catalog (e.g.
-  // openrouter's fullModelsFetcher) via the native <datalist> element —
-  // no new dependency, and it scales fine to a few hundred entries since
-  // the browser does the filtering. Absent for providers without one;
-  // typing a model id by hand always still works either way.
-  const datalistId = `add-model-options-${providerAlias}`;
-  const hasOptions = modelOptions && modelOptions.length > 0;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add Custom Model">
@@ -74,23 +126,53 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
         <div>
           <label className="text-sm font-medium mb-1.5 block">Model ID</label>
           <div className="flex gap-2">
-            <input
-              type="text"
-              value={modelId}
-              onChange={(e) => { setModelId(e.target.value); setTestStatus(null); setTestError(""); }}
-              onKeyDown={handleKeyDown}
-              placeholder={hasOptions ? "Search or type a model id" : "e.g. claude-opus-4-5"}
-              className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
-              list={hasOptions ? datalistId : undefined}
-              autoFocus
-            />
-            {hasOptions && (
-              <datalist id={datalistId}>
-                {modelOptions.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name || m.id}</option>
-                ))}
-              </datalist>
-            )}
+            <div className="relative flex-1" ref={containerRef}>
+              <input
+                type="text"
+                value={modelId}
+                onChange={(e) => {
+                  setModelId(e.target.value);
+                  setTestStatus(null);
+                  setTestError("");
+                  setHighlightedIndex(-1);
+                  if (hasOptions) setShowOptions(true);
+                }}
+                onFocus={() => { if (hasOptions) setShowOptions(true); }}
+                onKeyDown={handleKeyDown}
+                placeholder={hasOptions ? "Search or type a model id" : "e.g. claude-opus-4-5"}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
+                role={hasOptions ? "combobox" : undefined}
+                aria-expanded={hasOptions ? showOptions : undefined}
+                aria-autocomplete={hasOptions ? "list" : undefined}
+                autoFocus
+                autoComplete="off"
+              />
+              {hasOptions && showOptions && filteredOptions.length > 0 && (
+                <ul
+                  className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto rounded-lg border border-border bg-surface shadow-lg py-1"
+                  role="listbox"
+                >
+                  {filteredOptions.map((m, i) => (
+                    <li key={m.id} role="option" aria-selected={i === highlightedIndex}>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); selectOption(m.id); }}
+                        onMouseEnter={() => setHighlightedIndex(i)}
+                        className={`w-full text-left px-3 py-1.5 text-sm truncate ${
+                          i === highlightedIndex ? "bg-primary/10 text-primary" : "text-text-main hover:bg-primary/5"
+                        }`}
+                        title={m.name || m.id}
+                      >
+                        {m.id}
+                        {m.name && m.name !== m.id && (
+                          <span className="ml-1.5 text-xs text-text-muted">{m.name}</span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <Button
               variant="secondary"
               icon="science"
