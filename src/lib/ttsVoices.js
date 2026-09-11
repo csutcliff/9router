@@ -18,9 +18,10 @@ export async function listTtsVoices(provider, langFilter = null, apiKey = null) 
     return { error: `Provider '${provider}' does not support voice listing` };
   }
 
-  // ElevenLabs requires API key
-  const raw = provider === "elevenlabs" ? await fetcher(apiKey) : await fetcher();
-  const useElevenShape = provider === "elevenlabs" || provider === "gemini";
+  // ElevenLabs and OpenRouter require an API key to list models
+  const needsApiKey = provider === "elevenlabs" || provider === "openrouter";
+  const raw = needsApiKey ? await fetcher(apiKey) : await fetcher();
+  const useElevenShape = provider === "elevenlabs" || provider === "gemini" || provider === "openrouter";
   let voices;
 
   if (provider === "local-device") {

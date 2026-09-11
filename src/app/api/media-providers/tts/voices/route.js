@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 
 /**
  * GET /api/media-providers/tts/voices
- * Query: ?provider=edge-tts|local-device|elevenlabs [&lang=en] [&apiKey=...]
+ * Query: ?provider=edge-tts|local-device|elevenlabs|openrouter|gemini [&lang=en] [&apiKey=...]
+ * (apiKey required for elevenlabs and openrouter)
  */
 export async function GET(request) {
   try {
