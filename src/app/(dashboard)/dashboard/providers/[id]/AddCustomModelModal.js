@@ -7,7 +7,7 @@ import { CAPACITY_META } from "@/shared/constants/models";
 
 const defaultCaps = () => Object.fromEntries(Object.keys(CAPACITY_META).map((key) => [key, false]));
 
-export default function AddCustomModelModal({ isOpen, providerAlias, providerDisplayAlias, onSave, onClose }) {
+export default function AddCustomModelModal({ isOpen, providerAlias, providerDisplayAlias, modelOptions, onSave, onClose }) {
   const [modelId, setModelId] = useState("");
   const [caps, setCaps] = useState(defaultCaps);
   const [testStatus, setTestStatus] = useState(null); // null | "testing" | "ok" | "error"
@@ -60,6 +60,14 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
     if (e.key === "Enter") handleTest();
   };
 
+  // Optional autocomplete over a provider's full model catalog (e.g.
+  // openrouter's fullModelsFetcher) via the native <datalist> element —
+  // no new dependency, and it scales fine to a few hundred entries since
+  // the browser does the filtering. Absent for providers without one;
+  // typing a model id by hand always still works either way.
+  const datalistId = `add-model-options-${providerAlias}`;
+  const hasOptions = modelOptions && modelOptions.length > 0;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add Custom Model">
       <div className="flex flex-col gap-4">
@@ -71,10 +79,18 @@ export default function AddCustomModelModal({ isOpen, providerAlias, providerDis
               value={modelId}
               onChange={(e) => { setModelId(e.target.value); setTestStatus(null); setTestError(""); }}
               onKeyDown={handleKeyDown}
-              placeholder="e.g. claude-opus-4-5"
+              placeholder={hasOptions ? "Search or type a model id" : "e.g. claude-opus-4-5"}
               className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
+              list={hasOptions ? datalistId : undefined}
               autoFocus
             />
+            {hasOptions && (
+              <datalist id={datalistId}>
+                {modelOptions.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name || m.id}</option>
+                ))}
+              </datalist>
+            )}
             <Button
               variant="secondary"
               icon="science"
@@ -140,6 +156,14 @@ AddCustomModelModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   providerAlias: PropTypes.string.isRequired,
   providerDisplayAlias: PropTypes.string.isRequired,
+  modelOptions: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string,
+  })),
   onSave: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
+};
+
+AddCustomModelModal.defaultProps = {
+  modelOptions: [],
 };

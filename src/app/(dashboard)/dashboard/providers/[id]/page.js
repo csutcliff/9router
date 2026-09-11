@@ -70,7 +70,7 @@ export default function ProviderDetailPage() {
   const [thinkingMode, setThinkingMode] = useState("auto");
   const [autoPing, setAutoPing] = useState({ enabled: false, connections: {} });
   const [suggestedModels, setSuggestedModels] = useState([]);
-  const [suggestedModelsAreFree, setSuggestedModelsAreFree] = useState(true);
+  const [fullModelCatalog, setFullModelCatalog] = useState([]);
   const [liveModels, setLiveModels] = useState([]);
   // Live-catalog fetch warning/error (surfaced for zed only; cursor behavior unchanged).
   const [liveModelsError, setLiveModelsError] = useState(null);
@@ -516,13 +516,17 @@ export default function ProviderDetailPage() {
 
   // Fetch suggested models from provider's public API (if configured)
   useEffect(() => {
-    const fetcher = (OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId] || FREE_PROVIDERS[providerId] || FREE_TIER_PROVIDERS[providerId])?.modelsFetcher;
-    if (!fetcher) return;
-    // Every fetcher type used to be a "-free" one; openrouter-all is the
-    // first exception (the fuller catalog issue #4 asked for), so the
-    // heading below needs to stop claiming "free" for it specifically.
-    setSuggestedModelsAreFree(!fetcher.type?.endsWith("-all"));
-    fetchSuggestedModels(fetcher).then(setSuggestedModels);
+    const provider = OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId] || FREE_PROVIDERS[providerId] || FREE_TIER_PROVIDERS[providerId];
+    const fetcher = provider?.modelsFetcher;
+    if (fetcher) fetchSuggestedModels(fetcher).then(setSuggestedModels);
+    else setSuggestedModels([]);
+
+    // Separate, uncapped catalog for the Add Model dialog's autocomplete —
+    // distinct from modelsFetcher (which feeds the small suggested-models
+    // button grid and stays free-tier-only there).
+    const fullFetcher = provider?.fullModelsFetcher;
+    if (fullFetcher) fetchSuggestedModels(fullFetcher).then(setFullModelCatalog);
+    else setFullModelCatalog([]);
   }, [providerId]);
 
   const handleSetAlias = async (modelId, alias, providerAliasOverride = providerAlias) => {
@@ -1292,9 +1296,7 @@ export default function ProviderDetailPage() {
           if (notAdded.length === 0) return null;
           return (
             <div className="w-full mt-2">
-              <p className="text-xs text-text-muted mb-2">
-                {suggestedModelsAreFree ? "Suggested free models (≥200k context):" : "Suggested models (largest context first):"}
-              </p>
+              <p className="text-xs text-text-muted mb-2">Suggested free models (≥200k context):</p>
               <div className="flex flex-wrap gap-2">
                 {notAdded.map((m) => (
                   <button
@@ -1911,6 +1913,7 @@ export default function ProviderDetailPage() {
           isOpen={showAddCustomModel}
           providerAlias={providerStorageAlias}
           providerDisplayAlias={providerDisplayAlias}
+          modelOptions={fullModelCatalog}
           onSave={async (modelId, caps) => {
             await handleAddCustomModel(modelId, "llm", providerStorageAlias, caps);
             setShowAddCustomModel(false);
