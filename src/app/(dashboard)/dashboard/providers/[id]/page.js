@@ -70,6 +70,7 @@ export default function ProviderDetailPage() {
   const [thinkingMode, setThinkingMode] = useState("auto");
   const [autoPing, setAutoPing] = useState({ enabled: false, connections: {} });
   const [suggestedModels, setSuggestedModels] = useState([]);
+  const [suggestedModelsAreFree, setSuggestedModelsAreFree] = useState(true);
   const [liveModels, setLiveModels] = useState([]);
   // Live-catalog fetch warning/error (surfaced for zed only; cursor behavior unchanged).
   const [liveModelsError, setLiveModelsError] = useState(null);
@@ -517,6 +518,10 @@ export default function ProviderDetailPage() {
   useEffect(() => {
     const fetcher = (OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId] || FREE_PROVIDERS[providerId] || FREE_TIER_PROVIDERS[providerId])?.modelsFetcher;
     if (!fetcher) return;
+    // Every fetcher type used to be a "-free" one; openrouter-all is the
+    // first exception (the fuller catalog issue #4 asked for), so the
+    // heading below needs to stop claiming "free" for it specifically.
+    setSuggestedModelsAreFree(!fetcher.type?.endsWith("-all"));
     fetchSuggestedModels(fetcher).then(setSuggestedModels);
   }, [providerId]);
 
@@ -1287,7 +1292,9 @@ export default function ProviderDetailPage() {
           if (notAdded.length === 0) return null;
           return (
             <div className="w-full mt-2">
-              <p className="text-xs text-text-muted mb-2">Suggested free models (≥200k context):</p>
+              <p className="text-xs text-text-muted mb-2">
+                {suggestedModelsAreFree ? "Suggested free models (≥200k context):" : "Suggested models (largest context first):"}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {notAdded.map((m) => (
                   <button

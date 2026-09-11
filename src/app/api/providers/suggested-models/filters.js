@@ -16,15 +16,19 @@ export const FILTERS = {
       .map((m) => ({ id: m.id, name: m.name, contextLength: m.context_length }))
       .sort((a, b) => b.contextLength - a.contextLength),
 
-  // Full chat-model catalog, unfiltered — bare /v1/models already excludes
-  // embedding/tts/stt/image-only entries (those only surface behind
-  // output_modalities query params), so no extra filtering is needed here.
-  // Sorted by name since the free list's context-length sort doesn't scale
-  // to several hundred entries in a searchable picker.
+  // Chat-model catalog beyond the free subset — bare /v1/models already
+  // excludes embedding/tts/stt/image-only entries (those only surface behind
+  // output_modalities query params), so no extra filtering is needed there.
+  // The "suggested models" UI is a flat button grid with no search, so an
+  // unbounded ~450-model catalog isn't a usable suggestion list — cap it to
+  // the 60 largest-context models (same ranking the free filter already
+  // uses) as a genuinely useful shortlist. passthroughModels still covers
+  // typing in anything not shown here.
   "openrouter-all": (models) =>
     models
       .map((m) => ({ id: m.id, name: m.name, contextLength: m.context_length }))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+      .sort((a, b) => b.contextLength - a.contextLength)
+      .slice(0, 60),
 
   "opencode-free": (models) =>
     models
