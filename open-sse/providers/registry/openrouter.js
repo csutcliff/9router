@@ -43,10 +43,12 @@ export default {
     { id: "openai/whisper-1", name: "Whisper 1 (via OpenRouter)", params: ["language"], kind: "stt" },
     { id: "openai/gpt-4o-mini-transcribe", name: "GPT-4o Mini Transcribe (via OpenRouter)", params: ["language"], kind: "stt" },
     { id: "deepgram/nova-3", name: "Deepgram Nova-3 (via OpenRouter)", params: ["language"], kind: "stt" },
-    { id: "openai/dall-e-3", name: "DALL-E 3 (via OpenRouter)", params: ["size","quality","style","response_format"], kind: "image" },
+    // openai/dall-e-3, google/imagen-3.0-generate-002 and
+    // black-forest-labs/FLUX.1-schnell all 404 on OpenRouter's current
+    // catalog ("No model found") — replaced with real, verified-working ids.
     { id: "openai/gpt-image-1", name: "GPT Image 1 (via OpenRouter)", params: ["n","size","quality","response_format"], kind: "image" },
-    { id: "google/imagen-3.0-generate-002", name: "Imagen 3 (via OpenRouter)", params: ["n","size"], kind: "image" },
-    { id: "black-forest-labs/FLUX.1-schnell", name: "FLUX.1 Schnell (via OpenRouter)", params: ["n","size"], kind: "image" },
+    { id: "google/gemini-3-pro-image", name: "Nano Banana Pro (via OpenRouter)", params: ["n","size"], kind: "image" },
+    { id: "black-forest-labs/flux.2-pro", name: "FLUX.2 Pro (via OpenRouter)", params: ["n","size"], kind: "image" },
     { id: "google/veo-3.1", name: "Veo 3.1 (via OpenRouter)", params: ["duration","aspect_ratio","resolution"], kind: "video" },
     { id: "openai/sora-2-pro", name: "Sora 2 Pro (via OpenRouter)", params: ["duration","aspect_ratio","resolution"], kind: "video" },
     { id: "bytedance/seedance-2.0", name: "Seedance 2.0 (via OpenRouter)", params: ["duration","aspect_ratio","resolution"], kind: "video" },
