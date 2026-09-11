@@ -6,7 +6,7 @@ const MEDIA_ENTRY_KEYS = [
   "serviceKinds", "ttsConfig", "sttConfig", "embeddingConfig",
   "imageConfig", "imageToTextConfig", "videoConfig", "musicConfig",
   "searchViaChat", "searchConfig", "fetchConfig", "credentialFallback", "systemoneConfig",
-  "modelsFetcher", "mediaPriority", "hiddenKinds",
+  "modelsFetcher", "fullModelsFetcher", "mediaPriority", "hiddenKinds",
 ];
 
 // Build provider UI object from registry entry

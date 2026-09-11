@@ -97,10 +97,11 @@ export default {
     baseUrl: "https://openrouter.ai/api/v1/videos",
     headers: {"HTTP-Referer":"https://endpoint-proxy.local","X-Title":"Endpoint Proxy"},
   },
-  // "openrouter-all" surfaces the full chat-model catalog (not just the free
-  // subset "openrouter-free" filters to — that one's kept as-is since other
-  // providers with an identically-shaped /models response, e.g. kilocode,
-  // reuse it for their own free-tier listing).
-  modelsFetcher: { url: "https://openrouter.ai/api/v1/models", type: "openrouter-all" },
+  // modelsFetcher feeds the small suggested-models button grid — kept on the
+  // free-tier filter, unchanged. fullModelsFetcher feeds the Add Model
+  // dialog's autocomplete with the complete ~450-model catalog instead of
+  // requiring every non-free id to be typed from memory.
+  modelsFetcher: { url: "https://openrouter.ai/api/v1/models", type: "openrouter-free" },
+  fullModelsFetcher: { url: "https://openrouter.ai/api/v1/models", type: "openrouter-all" },
   passthroughModels: true,
 };
