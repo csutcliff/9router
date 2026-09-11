@@ -1,73 +1,34 @@
-// OpenRouter TTS — via chat completions + audio modality (SSE stream)
-import { PROVIDER_MEDIA } from "../../providers/index.js";
-
-const TTS_CFG = PROVIDER_MEDIA["openrouter"]?.ttsConfig || {};
-
-export default {
-  async synthesize(text, model, credentials) {
-    if (!credentials?.apiKey) throw new Error("No OpenRouter API key configured");
-
-    // model format: "tts-model/voice" e.g. "openai/gpt-4o-mini-tts/alloy"
-    let ttsModel = TTS_CFG.defaultModel;
-    let voice = "alloy";
-    if (model && model.includes("/")) {
-      const lastSlash = model.lastIndexOf("/");
-      const maybVoice = model.slice(lastSlash + 1);
-      const maybeModel = model.slice(0, lastSlash);
-      if (maybeModel.includes("/")) {
-        ttsModel = maybeModel;
-        voice = maybVoice;
-      } else {
-        voice = model;
-      }
-    } else if (model) {
-      voice = model;
-    }
-
-    const res = await fetch(TTS_CFG.baseUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${credentials.apiKey}`,
-        ...(TTS_CFG.headers || {}),
-      },
-      body: JSON.stringify({
-        model: ttsModel,
-        modalities: ["text", "audio"],
-        audio: { voice, format: "wav" },
-        stream: true,
-        messages: [{ role: "user", content: text }],
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `OpenRouter TTS failed: ${res.status}`);
-    }
-
-    // Parse SSE stream, accumulate base64 audio chunks
-    const chunks = [];
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith("data: ") || line === "data: [DONE]") continue;
-        try {
-          const json = JSON.parse(line.slice(6));
-          const audioData = json.choices?.[0]?.delta?.audio?.data;
-          if (audioData) chunks.push(audioData);
-        } catch {}
-      }
-    }
-
-    if (chunks.length === 0) throw new Error("OpenRouter TTS returned no audio data");
-    return { base64: chunks.join(""), format: "wav" };
-  },
-};
+// OpenRouter TTS model listing.
+//
+// Synthesis itself is NOT handled here — openrouter is deliberately absent
+// from ttsProviders/index.js's SPECIAL_ADAPTERS, so it goes through the
+// generic synthesizeViaConfig() dispatcher using ttsConfig.format: "openai"
+// (see providers/registry/openrouter.js). That dispatcher POSTs directly to
+// OpenRouter's OpenAI-compatible /v1/audio/speech endpoint, which is what
+// deepgram/aura-2, hexgrad/kokoro-82m, microsoft/mai-voice-2, etc. actually
+// live behind. An earlier version of this file routed everything through
+// /v1/chat/completions with modalities:["text","audio"] instead — that only
+// works for OpenRouter's audio-native chat models (openai/gpt-audio and
+// friends), not its dedicated TTS catalog, which OpenRouter itself rejects
+// with "is a text-to-speech model and cannot be used with the chat/completions
+// endpoint" when sent that way.
+//
+// This file now only supplies the live model list for the TTS setup UI's
+// "fetch available models" action (GET /api/media-providers/tts/voices),
+// mirroring fetchGeminiVoices's shape.
+export async function fetchOpenRouterTtsModels(apiKey) {
+  if (!apiKey) return [];
+  const res = await fetch("https://openrouter.ai/api/v1/models?output_modalities=speech", {
+    headers: { "Authorization": `Bearer ${apiKey}` },
+  });
+  if (!res.ok) return [];
+  const { data } = await res.json().catch(() => ({ data: [] }));
+  return (data || []).map((m) => ({
+    voice_id: m.id,
+    name: m.name || m.id,
+    // OpenRouter's speech models don't carry per-language voice metadata the
+    // way Gemini's prebuilt voice list does — leave these blank rather than
+    // guess.
+    labels: { language: "", gender: "" },
+  }));
+}

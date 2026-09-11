@@ -15,9 +15,9 @@ function langName(code) {
 /**
  * GET /api/media-providers/tts/voices
  * Query:
- *   ?provider=edge-tts | local-device | elevenlabs  (default: edge-tts)
+ *   ?provider=edge-tts | local-device | elevenlabs | openrouter | gemini  (default: edge-tts)
  *   ?lang=en     (optional filter by lang code)
- *   ?apiKey=xxx  (required for elevenlabs)
+ *   ?apiKey=xxx  (required for elevenlabs and openrouter)
  */
 export async function GET(request) {
   try {
@@ -31,9 +31,10 @@ export async function GET(request) {
       return NextResponse.json({ error: `Provider '${provider}' does not support voice listing` }, { status: 400 });
     }
 
-    // ElevenLabs requires API key
-    const raw = provider === "elevenlabs" ? await fetcher(apiKey) : await fetcher();
-    const useElevenShape = provider === "elevenlabs" || provider === "gemini";
+    // ElevenLabs and OpenRouter require an API key to list models
+    const needsApiKey = provider === "elevenlabs" || provider === "openrouter";
+    const raw = needsApiKey ? await fetcher(apiKey) : await fetcher();
+    const useElevenShape = provider === "elevenlabs" || provider === "gemini" || provider === "openrouter";
     let voices;
 
     if (provider === "local-device") {
