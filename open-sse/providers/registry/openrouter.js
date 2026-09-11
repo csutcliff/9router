@@ -33,9 +33,16 @@ export default {
     { id: "perplexity/pplx-embed-v1-4b", name: "Perplexity Embed V1 4B", kind: "embedding" },
     { id: "perplexity/pplx-embed-v1-0.6b", name: "Perplexity Embed V1 0.6B", kind: "embedding" },
     { id: "nvidia/llama-nemotron-embed-vl-1b-v2:free", name: "NVIDIA Nemotron Embed VL 1B V2 (Free)", kind: "embedding" },
-    { id: "openai/gpt-4o-mini-tts", name: "GPT-4o Mini TTS", kind: "tts" },
-    { id: "openai/tts-1-hd", name: "TTS-1 HD", kind: "tts" },
-    { id: "openai/tts-1", name: "TTS-1", kind: "tts" },
+    // OpenRouter's dedicated TTS catalog lives behind /api/v1/audio/speech,
+    // not chat completions — these are real, verified-working model ids there.
+    { id: "deepgram/aura-2", name: "Deepgram Aura-2 (via OpenRouter)", kind: "tts" },
+    { id: "hexgrad/kokoro-82m", name: "Kokoro 82M (via OpenRouter)", kind: "tts" },
+    { id: "microsoft/mai-voice-2-flash", name: "MAI Voice 2 Flash (via OpenRouter)", kind: "tts" },
+    { id: "microsoft/mai-voice-2", name: "MAI Voice 2 (via OpenRouter)", kind: "tts" },
+    { id: "google/gemini-3.1-flash-tts-preview", name: "Gemini 3.1 Flash TTS (via OpenRouter)", kind: "tts" },
+    { id: "openai/whisper-1", name: "Whisper 1 (via OpenRouter)", params: ["language"], kind: "stt" },
+    { id: "openai/gpt-4o-mini-transcribe", name: "GPT-4o Mini Transcribe (via OpenRouter)", params: ["language"], kind: "stt" },
+    { id: "deepgram/nova-3", name: "Deepgram Nova-3 (via OpenRouter)", params: ["language"], kind: "stt" },
     { id: "openai/dall-e-3", name: "DALL-E 3 (via OpenRouter)", params: ["size","quality","style","response_format"], kind: "image" },
     { id: "openai/gpt-image-1", name: "GPT Image 1 (via OpenRouter)", params: ["n","size","quality","response_format"], kind: "image" },
     { id: "google/imagen-3.0-generate-002", name: "Imagen 3 (via OpenRouter)", params: ["n","size"], kind: "image" },
@@ -45,16 +52,32 @@ export default {
     { id: "bytedance/seedance-2.0", name: "Seedance 2.0 (via OpenRouter)", params: ["duration","aspect_ratio","resolution"], kind: "video" },
     { id: "typesafe/jev-1.13", name: "Jev 1.13", kind: "systemone" },
   ],
-  serviceKinds: ["llm","embedding","tts","imageToText","video","systemone"],
+  serviceKinds: ["llm","embedding","tts","stt","image","imageToText","video","systemone"],
   // System One decision API (TypeSafe-compatible): https://openrouter.ai/docs/guides/community/typesafe-sdk
   systemoneConfig: {
     baseUrl: "https://openrouter.ai/api/v1/systemone",
     headers: {"HTTP-Referer":"https://endpoint-proxy.local","X-Title":"Endpoint Proxy"},
   },
+  // OpenRouter's TTS/STT catalog (deepgram/aura-2, hexgrad/kokoro-82m, whisper-1,
+  // etc.) lives behind the dedicated /api/v1/audio/speech and
+  // /api/v1/audio/transcriptions REST endpoints — the same OpenAI-compatible
+  // shape as api.openai.com, not the chat/completions + modalities:["audio"]
+  // mechanism (that mechanism is a separate thing, only for audio-native chat
+  // models like openai/gpt-audio; OpenRouter itself 400s if you send a
+  // TTS-catalog model id to chat/completions). Route both through the generic
+  // "openai" format handler, same as the openai provider itself does.
   ttsConfig: {
-    baseUrl: "https://openrouter.ai/api/v1/chat/completions",
-    defaultModel: "openai/gpt-4o-mini-tts",
-    headers: {"HTTP-Referer":"https://endpoint-proxy.local","X-Title":"Endpoint Proxy"},
+    baseUrl: "https://openrouter.ai/api/v1/audio/speech",
+    authType: "apikey",
+    authHeader: "bearer",
+    format: "openai",
+    defaultModel: "deepgram/aura-2",
+  },
+  sttConfig: {
+    baseUrl: "https://openrouter.ai/api/v1/audio/transcriptions",
+    authType: "apikey",
+    authHeader: "bearer",
+    format: "openai",
   },
   embeddingConfig: {
     baseUrl: "https://openrouter.ai/api/v1/embeddings",
@@ -72,6 +95,10 @@ export default {
     baseUrl: "https://openrouter.ai/api/v1/videos",
     headers: {"HTTP-Referer":"https://endpoint-proxy.local","X-Title":"Endpoint Proxy"},
   },
-  modelsFetcher: { url: "https://openrouter.ai/api/v1/models", type: "openrouter-free" },
+  // "openrouter-all" surfaces the full chat-model catalog (not just the free
+  // subset "openrouter-free" filters to — that one's kept as-is since other
+  // providers with an identically-shaped /models response, e.g. kilocode,
+  // reuse it for their own free-tier listing).
+  modelsFetcher: { url: "https://openrouter.ai/api/v1/models", type: "openrouter-all" },
   passthroughModels: true,
 };

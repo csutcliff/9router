@@ -4,21 +4,25 @@ import edgeTts, { fetchEdgeTtsVoices } from "./edgeTts.js";
 import localDevice, { fetchLocalDeviceVoices } from "./localDevice.js";
 import elevenlabs, { fetchElevenLabsVoices } from "./elevenlabs.js";
 import openai from "./openai.js";
-import openrouter from "./openrouter.js";
+import { fetchOpenRouterTtsModels } from "./openrouter.js";
 import gemini, { fetchGeminiVoices } from "./gemini.js";
 import xiaomiMimo from "./xiaomi-mimo.js";
 import selfhostedTts from "./selfhostedTts.js";
 import { FORMAT_HANDLERS } from "./genericFormats.js";
 import { parseModelVoice } from "./_base.js";
 
-// Special providers with custom synthesize() logic
+// Special providers with custom synthesize() logic.
+// openrouter is NOT here: its TTS catalog (deepgram/aura-2, kokoro-82m, etc.)
+// is a plain OpenAI-compatible /v1/audio/speech endpoint, so it goes through
+// the generic synthesizeViaConfig() dispatcher (ttsConfig.format: "openai")
+// below like any other provider using that shape. It only needs a models
+// fetcher here (see VOICE_FETCHERS), not a synthesize() override.
 const SPECIAL_ADAPTERS = {
   "google-tts": googleTts,
   "edge-tts": edgeTts,
   "local-device": localDevice,
   elevenlabs,
   openai,
-  openrouter,
   gemini,
   "xiaomi-mimo": xiaomiMimo,
   "selfhosted-tts": selfhostedTts,
@@ -50,7 +54,8 @@ export const VOICE_FETCHERS = {
   "local-device": fetchLocalDeviceVoices,
   elevenlabs: fetchElevenLabsVoices,
   gemini: fetchGeminiVoices,
+  openrouter: fetchOpenRouterTtsModels,
 };
 
 // Re-export for backward compat
-export { fetchEdgeTtsVoices, fetchLocalDeviceVoices, fetchElevenLabsVoices, fetchGeminiVoices };
+export { fetchEdgeTtsVoices, fetchLocalDeviceVoices, fetchElevenLabsVoices, fetchGeminiVoices, fetchOpenRouterTtsModels };

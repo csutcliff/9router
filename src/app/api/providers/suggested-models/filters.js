@@ -16,6 +16,16 @@ export const FILTERS = {
       .map((m) => ({ id: m.id, name: m.name, contextLength: m.context_length }))
       .sort((a, b) => b.contextLength - a.contextLength),
 
+  // Full chat-model catalog, unfiltered — bare /v1/models already excludes
+  // embedding/tts/stt/image-only entries (those only surface behind
+  // output_modalities query params), so no extra filtering is needed here.
+  // Sorted by name since the free list's context-length sort doesn't scale
+  // to several hundred entries in a searchable picker.
+  "openrouter-all": (models) =>
+    models
+      .map((m) => ({ id: m.id, name: m.name, contextLength: m.context_length }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+
   "opencode-free": (models) =>
     models
       .filter((m) => (m.id?.endsWith("-free") || KNOWN_FREE_OPENCODE_MODELS.includes(m.id)) && !DEAD_FREE_OPENCODE_MODELS.has(m.id))
